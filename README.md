@@ -29,7 +29,9 @@
 # Features
 
 - 新增指纹识别模块
+
 tr参数强制性指定,为指纹目录
+
 usage:
 ```bash
  ./httpx -l /tmp/qq.txt -tr /Users/wing/PycharmProjects/pythonProject/rules -td  -sc -ct -favicon -lc -wc -title -server -o 1.json -json
