@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -17,7 +18,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +25,10 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/PuerkitoBio/goquery"
+	tech "github.com/XTeam-Wing/tech-detecter"
+	"github.com/bluele/gcache"
+	"github.com/logrusorgru/aurora"
+	"github.com/pkg/errors"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	dsl "github.com/projectdiscovery/dsl"
 	"github.com/projectdiscovery/fastdialer/fastdialer"
@@ -32,10 +36,6 @@ import (
 	"github.com/projectdiscovery/httpx/common/hashes/jarm"
 	"github.com/projectdiscovery/mapcidr/asn"
 	mapsutil "github.com/projectdiscovery/utils/maps"
-
-	"github.com/bluele/gcache"
-	"github.com/logrusorgru/aurora"
-	"github.com/pkg/errors"
 
 	"github.com/projectdiscovery/clistats"
 	"github.com/projectdiscovery/goconfig"
@@ -71,6 +71,7 @@ type Runner struct {
 	options         *Options
 	hp              *httpx.HTTPX
 	wappalyzer      *wappalyzer.Wappalyze
+	tech            tech.TechDetecter
 	fastdialer      *fastdialer.Dialer
 	scanopts        scanOptions
 	hm              *hybrid.HybridMap
@@ -88,10 +89,11 @@ func New(options *Options) (*Runner, error) {
 	}
 	var err error
 	if options.TechDetect {
-		runner.wappalyzer, err = wappalyzer.New()
+		err = runner.tech.Init(options.TechRule)
+		//runner.wappalyzer, err = wappalyzer.New()
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create wappalyzer client")
+		return nil, errors.Wrap(err, "could not create tech detect client")
 	}
 	if options.StoreResponseDir != "" {
 		os.RemoveAll(filepath.Join(options.StoreResponseDir, "index.txt"))
@@ -1414,23 +1416,25 @@ retry:
 	if scanopts.OutputResponseTime {
 		builder.WriteString(fmt.Sprintf(" [%s]", resp.Duration))
 	}
-
-	var technologies []string
+	techList := ""
 	if scanopts.TechDetect {
-		matches := r.wappalyzer.Fingerprint(resp.Headers, resp.Data)
-		for match := range matches {
-			technologies = append(technologies, match)
+		techResp := http.Response{
+			Header: resp.Headers,
+			Body:   ioutil.NopCloser(bytes.NewReader(resp.Data)),
+			TLS:    nil,
 		}
 
-		if len(technologies) > 0 {
-			sort.Strings(technologies)
-			technologies := strings.Join(technologies, ",")
+		techList, err = r.tech.Detect(&techResp)
+		if err != nil {
+			gologger.Warning().Msgf("detect techList error: %s", err)
+		}
 
+		if techList != "" {
 			builder.WriteString(" [")
 			if !scanopts.OutputWithNoColor {
-				builder.WriteString(aurora.Magenta(technologies).String())
+				builder.WriteString(aurora.Magenta(techList).String())
 			} else {
-				builder.WriteString(technologies)
+				builder.WriteString(techList)
 			}
 			builder.WriteRune(']')
 		}
@@ -1651,7 +1655,7 @@ retry:
 		CDN:                isCDN,
 		CDNName:            cdnName,
 		ResponseTime:       resp.Duration.String(),
-		Technologies:       technologies,
+		Technologies:       techList,
 		FinalURL:           finalURL,
 		FavIconMMH3:        faviconMMH3,
 		FaviconPath:        faviconPath,

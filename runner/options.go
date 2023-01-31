@@ -146,6 +146,7 @@ type Options struct {
 	HTTPProxy                 string
 	SocksProxy                string
 	InputFile                 string
+	TechRule                  string
 	InputTargetHost           goflags.StringSlice
 	Methods                   string
 	RequestURI                string
@@ -271,6 +272,7 @@ func ParseOptions() *Options {
 
 	flagSet.CreateGroup("input", "Input",
 		flagSet.StringVarP(&options.InputFile, "list", "l", "", "input file containing list of hosts to process"),
+		flagSet.StringVarP(&options.TechRule, "tech-rule", "tr", "", "tech rule file path"),
 		flagSet.StringVarP(&options.InputRawRequest, "request", "rr", "", "file containing raw request"),
 		flagSet.StringSliceVarP(&options.InputTargetHost, "target", "u", nil, "input target host(s) to probe", goflags.CommaSeparatedStringSliceOptions),
 	)
@@ -415,7 +417,10 @@ func ParseOptions() *Options {
 		gologger.Print().Msgf("%s\n", DoHealthCheck(options, flagSet))
 		os.Exit(0)
 	}
-
+	if options.TechRule == "" {
+		gologger.Fatal().Msgf("Tech Rule Not Exists\n")
+		os.Exit(0)
+	}
 	if options.StatsInterval != 0 {
 		options.ShowStatistics = true
 	}

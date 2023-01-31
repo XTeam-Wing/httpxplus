@@ -59,7 +59,7 @@ type Result struct {
 	ChainStatusCodes   []int                  `json:"chain_status_codes,omitempty" csv:"chain_status_codes"`
 	A                  []string               `json:"a,omitempty" csv:"a"`
 	CNAMEs             []string               `json:"cname,omitempty" csv:"cname"`
-	Technologies       []string               `json:"tech,omitempty" csv:"tech"`
+	Technologies       string                 `json:"tech,omitempty" csv:"tech"`
 	Extracts           map[string][]string    `json:"extracts,omitempty" csv:"extracts"`
 	Chain              []httpx.ChainItem      `json:"chain,omitempty" csv:"chain"`
 	Words              int                    `json:"words" csv:"words"`

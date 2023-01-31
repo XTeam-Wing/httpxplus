@@ -1,0 +1,7 @@
+info:
+  company: Nginx
+  product: nginx
+  lang: C
+  server: nginx
+  category: 'Server'
+matches: banner.icontains(base64Decode("bmdpbng="))
